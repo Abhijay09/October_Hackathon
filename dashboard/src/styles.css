@@ -1,16 +1,22 @@
 /* Alchemy. A quiet study in white, ink and one blue. Space (ma) does the separating, not boxes. */
 
 :root {
-  --white: #ffffff;
-  --mist: #f2f6fc;
-  --ink: #0b0d12;
-  --ink-soft: #4b5565;
-  --rule: #d7e0ee;
-  --rule-strong: #aebcd4;
-  --blue: #1f6fe0;
-  --blue-deep: #0e3d99;
-  --blue-wash: #e3edfc;
-  --blue-bright: #6aa5f5; /* the blue on black */
+  /* Three given colours: indigo #0c2a7d, vermilion #b73736, washi gold #efe1a0. */
+  --navy: #0c2a7d;
+  --navy-deep: #081d5c;
+  --red: #b73736;
+  --red-deep: #8f2a29;
+  --gold: #efe1a0;
+  --paper: #fbf8e7; /* gold at 25% over white: washi */
+  --white: #fffdf3;
+  --ink: #0f1633;
+  --ink-soft: #46507a;
+  --rule: #dccf8f;
+  --rule-strong: #7886b3;
+  --blue: var(--navy);
+  --blue-deep: var(--navy-deep);
+  --blue-wash: var(--gold);
+  --blue-bright: var(--gold);
 
   --font-ui: "Zen Kaku Gothic New", "Mukta", system-ui, sans-serif;
   --font-display: "Shippori Mincho", "Rozha One", Georgia, serif;
@@ -43,7 +49,7 @@ html {
 
 body {
   margin: 0;
-  background: var(--white);
+  background: var(--paper);
   color: var(--ink);
   font-family: var(--font-ui);
   font-size: var(--step-0);
@@ -58,6 +64,7 @@ p {
 }
 
 h2 {
+  color: var(--navy);
   font-family: var(--font-display);
   font-weight: 700;
   font-size: var(--step-2);
@@ -85,7 +92,7 @@ code {
 }
 
 :focus-visible {
-  outline: 2px solid var(--blue);
+  outline: 2px solid var(--navy);
   outline-offset: 2px;
 }
 
@@ -97,12 +104,12 @@ code {
   display: inline-grid;
   place-items: center;
   border-radius: 50%;
-  background: var(--white);
-  border: 5px solid var(--white);
+  background: var(--gold);
+  border: 5px solid #fff;
   box-shadow:
-    0 0 0 1px rgb(11 13 18 / 0.18),
-    0 10px 28px rgb(14 61 153 / 0.28);
-  color: var(--ink);
+    0 0 0 1px rgb(12 42 125 / 0.3),
+    0 10px 28px rgb(8 29 92 / 0.4);
+  color: var(--navy);
 }
 
 .orb-flask {
@@ -117,8 +124,8 @@ code {
   top: 0;
   z-index: 20;
   height: var(--bar);
-  background: var(--ink);
-  color: var(--white);
+  background: var(--navy);
+  color: var(--gold);
 }
 
 .topbar-inner {
@@ -145,7 +152,7 @@ code {
   font-weight: 700;
   font-size: var(--step-2);
   letter-spacing: 0.04em;
-  color: var(--white);
+  color: var(--gold);
   text-decoration: none;
 }
 
@@ -156,7 +163,7 @@ code {
 }
 
 .nav a {
-  color: rgb(255 255 255 / 0.72);
+  color: rgb(239 225 160 / 0.78);
   text-decoration: none;
   padding: 6px 12px;
   border-bottom: 2px solid transparent;
@@ -165,19 +172,19 @@ code {
 }
 
 .nav a:hover {
-  color: var(--white);
+  color: var(--gold);
 }
 
 .nav a[aria-current="true"] {
-  color: var(--white);
-  border-bottom-color: var(--blue-bright);
+  color: var(--gold);
+  border-bottom-color: var(--gold);
 }
 
 .account {
   display: flex;
   align-items: center;
   gap: 10px;
-  color: rgb(255 255 255 / 0.7);
+  color: rgb(239 225 160 / 0.82);
 }
 
 .account .who {
@@ -188,12 +195,12 @@ code {
 }
 
 .topbar .btn-small {
-  color: var(--white);
-  border-color: rgb(255 255 255 / 0.4);
+  color: var(--gold);
+  border-color: rgb(239 225 160 / 0.55);
 }
 
 .topbar .btn-small:not(:disabled):hover {
-  background: rgb(255 255 255 / 0.12);
+  background: rgb(239 225 160 / 0.16);
 }
 
 /* ---------------------------------------------------------------- page */
@@ -268,7 +275,7 @@ code {
 }
 
 .yinyang {
-  color: var(--ink);
+  color: var(--navy);
   animation: turn 36s linear infinite;
 }
 
@@ -295,16 +302,18 @@ code {
 }
 
 .status-ok {
-  color: var(--blue);
+  color: var(--navy);
 }
 
 .status-warn {
-  color: var(--ink);
+  color: var(--navy);
+  background: var(--gold);
+  padding: 0 12px;
 }
 
 .status-bad {
-  color: var(--white);
-  background: var(--ink);
+  color: #fff;
+  background: var(--red);
   padding: 0 12px;
 }
 
@@ -356,7 +365,7 @@ code {
 }
 
 .meter-hot {
-  background: var(--ink);
+  background: var(--red);
 }
 
 .facts {
@@ -417,7 +426,7 @@ code {
 }
 
 .slip-alarm {
-  border: 3px solid var(--ink);
+  border: 3px solid var(--red);
 }
 
 .slip-main {
@@ -468,9 +477,9 @@ code {
   font-weight: 700;
   font-size: var(--step--1);
   color: var(--ink-soft);
-  background: var(--white);
+  background: var(--paper);
   padding: 8px 10px;
-  border-bottom: 1px solid var(--ink);
+  border-bottom: 1px solid var(--navy);
 }
 
 .ledger td {
@@ -515,9 +524,9 @@ code {
 }
 
 .mark-bad {
-  color: var(--white);
-  background: var(--ink);
-  border-color: var(--ink);
+  color: #fff;
+  background: var(--red);
+  border-color: var(--red);
 }
 
 .mark-info {
@@ -563,7 +572,7 @@ select:focus-visible {
 .field-error {
   font-size: var(--step--1);
   font-weight: 700;
-  border-left: 3px solid var(--ink);
+  border-left: 3px solid var(--red);
   padding-left: 10px;
 }
 
@@ -583,8 +592,8 @@ select:focus-visible {
 }
 
 .btn-primary {
-  background: var(--blue);
-  color: var(--white);
+  background: var(--navy);
+  color: var(--paper);
 }
 
 .btn-primary:not(:disabled):hover {
@@ -592,19 +601,19 @@ select:focus-visible {
 }
 
 .btn-danger {
-  background: var(--ink);
-  color: var(--white);
+  background: var(--red);
+  color: #fff;
 }
 
 .btn-danger:not(:disabled):hover {
-  background: var(--blue-deep);
+  background: var(--red-deep);
 }
 
 .btn-quiet,
 .btn-small {
   background: transparent;
-  color: var(--ink);
-  border-color: var(--ink);
+  color: var(--navy);
+  border-color: var(--navy);
 }
 
 .btn-small {
@@ -689,7 +698,7 @@ select:focus-visible {
   font-family: var(--font-display);
   font-weight: 700;
   font-size: var(--step-3);
-  color: var(--blue);
+  color: var(--navy);
   line-height: 1.15;
 }
 
@@ -743,7 +752,7 @@ select:focus-visible {
 }
 
 .toast-bad {
-  border-left-color: var(--ink);
+  border-left-color: var(--red);
 }
 
 .busy {
@@ -778,7 +787,7 @@ select:focus-visible {
 .login-page {
   position: fixed;
   inset: 0;
-  background: #000;
+  background: #071a52;
   display: grid;
   place-items: center;
   padding: 16px;
@@ -800,8 +809,8 @@ select:focus-visible {
   display: grid;
   gap: 16px;
   justify-items: stretch;
-  background: var(--white);
-  border: 5px solid var(--white);
+  background: var(--paper);
+  border: 5px solid #fff;
   outline: 1px solid var(--rule-strong);
   padding: 56px 28px 28px;
   margin-top: 52px;
@@ -813,7 +822,7 @@ select:focus-visible {
   left: 50%;
   top: 0;
   transform: translate(-50%, -50%);
-  border-color: var(--white);
+  border-color: #fff;
   outline: 1px solid var(--rule-strong);
 }
 
@@ -936,4 +945,8 @@ select:focus-visible {
   .ledger td {
     padding-inline: 6px;
   }
+}
+
+.topbar :focus-visible {
+  outline-color: var(--gold);
 }

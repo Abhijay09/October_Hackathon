@@ -10,20 +10,38 @@ import { clamp, hash3, smoothstep } from "./math";
 import { SHARK_NODES, type Shark, type SharkKind, type World } from "./world";
 
 const ALPHA_LEVELS = 6;
-const FISH_ALPHAS = [0.28, 0.42, 0.58, 0.74, 0.9];
+const FISH_ALPHAS = [0.42, 0.56, 0.7, 0.85, 1];
 
-// Dot colour classes, retinted for Alchemy: all blues and whites; the last entry is the wake.
+// Alchemy palette: deep indigo water, washi-gold fish, a little vermilion.
+// Red never sits on the dark water at full strength (it fails contrast there), so it is lifted to a tint.
+const WATER = "#071a52";
+const GOLD: [number, number, number] = [239, 225, 160];
+const SHADOW: [number, number, number] = [22, 56, 148];
+const INK = "#071447";
+
+// Dot colour classes: gold, pale gold, light indigo, vermilion tint; the last entry is the wake.
 const DOT_RGB: [number, number, number][] = [
-  [31, 111, 224],
-  [91, 155, 240],
-  [14, 61, 153],
-  [190, 212, 255],
-  [140, 200, 255],
+  [239, 225, 160],
+  [250, 242, 200],
+  [143, 164, 234],
+  [224, 122, 119],
+  [250, 244, 214],
 ];
 const DOT_BASE_ALPHA = [1, 1, 1, 1, 1];
 const WAKE = DOT_RGB.length - 1;
 
-const ACCENTS = ["#1f6fe0", "#5b9bf0", "#0e3d99", "#9cc3f7", "#ffffff", "#3a81f0", "#dbe8fb"];
+const ACCENTS = ["#efe1a0", "#ffffff", "#e07a77", "#efe1a0", "#8fa4ea", "#e07a77", "#faf2c8"];
+
+/**
+ * Indigo shadow to gold highlight. Blending those two straight through the middle gives flat grey,
+ * so the ramp steps quickly: cells read as either clearly indigo or clearly gold.
+ */
+function tone(t: number): string {
+  const x = Math.max(0, Math.min(1, (t - 0.32) / 0.36));
+  const k = x * x * (3 - 2 * x);
+  const c = (i: number) => Math.round(SHADOW[i] + (GOLD[i] - SHADOW[i]) * k);
+  return `rgb(${c(0)},${c(1)},${c(2)})`;
+}
 
 // Sparse glyphs on bright skin, dense glyphs in shadow, so the texture
 // reinforces the shading instead of fighting it.
@@ -250,7 +268,7 @@ function inTriangle(
 /** Visible dark-grey cell grid, snapped to device pixels. Shared with the sidebar backdrop. */
 export function paintGrid(g: CanvasRenderingContext2D, W: number, H: number, cw: number, ch: number, dpr: number) {
   g.setTransform(1, 0, 0, 1, 0, 0);
-  g.strokeStyle = "rgba(255,255,255,0.055)";
+  g.strokeStyle = "rgba(239,225,160,0.06)";
   g.lineWidth = 1;
   g.beginPath();
   for (let c = 0; c <= Math.ceil(W / cw); c++) {
@@ -315,7 +333,7 @@ export class AsciiRenderer {
   private frameId = 0;
   /** Fish cells bucketed by brightness, so each bucket is one fillStyle. */
   private fishBuckets: number[][] = FISH_ALPHAS.map(() => []);
-  private fishStyles = FISH_ALPHAS.map((a) => `rgba(230,238,255,${a})`);
+  private fishStyles = FISH_ALPHAS.map((a) => `rgba(239,225,160,${a})`);
 
   constructor(private canvas: HTMLCanvasElement) {
     const ctx = canvas.getContext("2d", { alpha: false });
@@ -395,7 +413,7 @@ export class AsciiRenderer {
     if (!g) return;
     const { width: W, height: H, dpr, cw, ch } = this;
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
-    g.fillStyle = "#000";
+    g.fillStyle = WATER;
     g.fillRect(0, 0, W, H);
     paintGrid(g, W, H, cw, ch, dpr);
   }
@@ -763,7 +781,6 @@ export class AsciiRenderer {
       const key = sharkKey[i];
       const shade = sharkShade[i];
       const dim = 0.7 + 0.3 * sharkDepth[i];
-      const [tr, tg, tb] = SHAPES[KINDS[sharkKind[i]]].tint;
 
       // Colours re-roll on a staggered clock so the hide shimmers.
       const tick = Math.floor(t * 2.4 + (key % 997) / 97);
@@ -772,11 +789,8 @@ export class AsciiRenderer {
       if (flag === FLAG_EDGE) {
         // Soft, anti-aliased silhouette: no block, just a light glyph.
         const set = shade >= 0.5 ? EDGE_HEAVY : EDGE_LIGHT;
-        const g = (70 + shade * 80) * dim;
-        ctx.fillStyle =
-          roll < 0.07
-            ? ACCENTS[key % ACCENTS.length]
-            : `rgb(${Math.round(g * tr)},${Math.round(g * tg)},${Math.min(255, Math.round(g * tb + 6))})`;
+        const g = (120 + shade * 135) * dim;
+        ctx.fillStyle = roll < 0.07 ? ACCENTS[key % ACCENTS.length] : tone(g / 255);
         ctx.fillText(set[(key >>> 8) % set.length], x + cw / 2, y + ch / 2 + 1);
         continue;
       }
@@ -801,16 +815,18 @@ export class AsciiRenderer {
         glyph = SKIN_RAMP[clamp(Math.floor((1 - shade) * 8.99) + jitter, 0, SKIN_RAMP.length - 1)];
       }
       level *= dim;
-      // Tinted per species; the classic tint is a cool blue-grey, like a back seen through deep water.
-      ctx.fillStyle = `rgb(${Math.min(255, Math.round(level * tr))},${Math.min(255, Math.round(level * tg))},${Math.min(255, Math.round(level * tb + 4))})`;
+      const lt = level / 255;
+      ctx.fillStyle = tone(lt);
       ctx.fillRect(x + 1, y + 1, cw - 1, ch - 1);
 
       let color: string;
-      if (flag === FLAG_EYE) color = "#9aa0ad";
-      else if (flag === FLAG_MARK) color = `rgb(${Math.round(70 * tr)},${Math.round(70 * tg)},${Math.round(70 * tb)})`;
-      else if (roll < 0.09) color = ACCENTS[key % ACCENTS.length];
-      else if (roll < 0.13) color = "#ffffff";
-      else color = shade > 0.55 ? "#0e0f13" : "#1b1d24";
+      // Glyphs flip with the cell: dark ink on bright gold, light gold on indigo, so every cell stays legible.
+      const onLight = lt > 0.5;
+      if (flag === FLAG_EYE) color = "#efe1a0";
+      else if (flag === FLAG_MARK) color = "#8fa4ea";
+      else if (roll < 0.09) color = onLight ? "#b73736" : "#e07a77";
+      else if (roll < 0.13) color = onLight ? "#0c2a7d" : "#ffffff";
+      else color = onLight ? INK : "#e3d38a";
       ctx.fillStyle = color;
       ctx.fillText(glyph, x + cw / 2, y + ch / 2 + 1);
     }
@@ -859,7 +875,7 @@ export class AsciiRenderer {
       if (h < 0.08) continue;
       const col = i % cols;
       const row = (i / cols) | 0;
-      ctx.fillStyle = h > 0.5 ? `rgba(180,215,255,${h.toFixed(2)})` : `rgba(31,111,224,${(h * 1.6).toFixed(2)})`;
+      ctx.fillStyle = h > 0.5 ? `rgba(250,242,200,${h.toFixed(2)})` : `rgba(224,122,119,${(h * 1.6).toFixed(2)})`;
       ctx.fillText(h > 0.6 ? "*" : "·", col * cw + cw / 2, row * ch + ch / 2 + 1);
     }
   }
