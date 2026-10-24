@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "target": "es2023",
+    "lib": ["es2023", "dom", "dom.iterable"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": false,
+    "types": ["vite/client"],
+    "paths": { "@shared/*": ["../services/src/lib/*"] }
+  },
+  "include": ["src", "../services/src/lib/rupee.ts", "../services/src/lib/rbi.ts"]
+}
