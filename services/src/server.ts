@@ -1,5 +1,6 @@
 // HyperNexus services: ERC-4337 bundler + paymaster JSON-RPC (/rpc) and the dashboard REST API (/api).
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, statSync } from "node:fs";
+import { extname, resolve, sep } from "node:path";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { encodeFunctionData, erc20Abi, getAddress, isAddress, type Address, type Hex } from "viem";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
@@ -8,7 +9,7 @@ import { ATTACKS, runAttack } from "./agent/attacks.js";
 import { evaluate, REPORT_FILE } from "./agent/evaluate.js";
 import { ERRANDS, merchantAddress, runErrands } from "./agent/honest.js";
 import { BundlerError } from "./lib/bundler.js";
-import { abis, devKey } from "./lib/chain.js";
+import { abis, devKey, ROOT } from "./lib/chain.js";
 import { createContext } from "./lib/context.js";
 import { saveDeployment } from "./lib/deployment.js";
 import { toJson } from "./lib/json.js";
@@ -19,6 +20,34 @@ import { toPaise } from "./lib/rupee.js";
 import { fromRpc, userOpHash } from "./lib/userop.js";
 
 const PORT = Number(process.env.PORT ?? 4337);
+// Render (and any container host) needs 0.0.0.0; locally we stay on loopback.
+const HOST = process.env.HOST ?? "127.0.0.1";
+const DASHBOARD_DIST = resolve(ROOT, "dashboard/dist");
+const MIME: Record<string, string> = {
+  ".html": "text/html; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".json": "application/json",
+  ".svg": "image/svg+xml",
+  ".png": "image/png",
+  ".ico": "image/x-icon",
+  ".woff2": "font/woff2",
+};
+
+/** Serve the built dashboard (production). Unknown paths fall back to index.html. */
+function serveStatic(pathname: string, res: ServerResponse): boolean {
+  if (!existsSync(DASHBOARD_DIST)) return false;
+  let file = resolve(DASHBOARD_DIST, "." + decodeURIComponent(pathname));
+  if (!file.startsWith(DASHBOARD_DIST + sep) && file !== DASHBOARD_DIST) return false;
+  if (!existsSync(file) || statSync(file).isDirectory()) file = resolve(DASHBOARD_DIST, "index.html");
+  if (!existsSync(file)) return false;
+  res.writeHead(200, {
+    "content-type": MIME[extname(file)] ?? "application/octet-stream",
+    "cache-control": file.includes(`${sep}assets${sep}`) ? "public, max-age=31536000, immutable" : "no-cache",
+  });
+  res.end(readFileSync(file));
+  return true;
+}
 const ctx = createContext();
 const { dep } = ctx;
 let agent = new AgentClient(ctx, dep.contracts.wallet, dep.devKeys.agent);
@@ -237,8 +266,21 @@ const server = createServer(async (req, res) => {
         return send(res, 200, { jsonrpc: "2.0", id, error: { code, message: (err as Error).message } });
       }
     }
+    // The dashboard talks to the chain through this path (Vite does the same in development).
+    if (url.pathname === "/chain" && req.method === "POST") {
+      const upstream = await fetch(dep.rpcUrl, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(await readBody(req)),
+      });
+      res.writeHead(upstream.status, { "content-type": "application/json" });
+      return void res.end(await upstream.text());
+    }
     const handler = routes[`${req.method} ${url.pathname}`];
-    if (!handler) return send(res, 404, { error: "not found" });
+    if (!handler) {
+      if (req.method === "GET" && !url.pathname.startsWith("/api") && serveStatic(url.pathname, res)) return;
+      return send(res, 404, { error: "not found" });
+    }
     return send(res, 200, await handler(req.method === "POST" ? await readBody(req) : {}));
   } catch (err) {
     const status = err instanceof HttpError ? err.status : 500;
@@ -247,7 +289,7 @@ const server = createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, "127.0.0.1", () => {
-  console.log(`HyperNexus services on http://127.0.0.1:${PORT}  (bundler + paymaster at /rpc, API at /api)`);
+server.listen(PORT, HOST, () => {
+  console.log(`HyperNexus services on http://${HOST}:${PORT}  (bundler + paymaster at /rpc, API at /api)`);
   console.log(`Wallet ${dep.contracts.wallet}  agent ${agent.address}`);
 });
