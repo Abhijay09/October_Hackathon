@@ -1,5 +1,6 @@
 // Brings up the local stack: Hardhat chain → deploy → services (bundler/paymaster/API) → dashboard.
 //   node scripts/stack.mjs dev    everything, until Ctrl+C
+//   node scripts/stack.mjs prod   chain + deploy + one server that also serves the built dashboard (Render)
 //   node scripts/stack.mjs demo   chain + deploy, then the attack-lab evaluation in the terminal; exits
 import { spawn, spawnSync } from "node:child_process";
 import { dirname, resolve } from "node:path";
@@ -69,12 +70,18 @@ start("chain", "npx", ["hardhat", "node"], "contracts");
 await waitFor("http://127.0.0.1:8545", JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_chainId", params: [] }));
 run("npx", ["tsx", "src/deploy.ts"], "services");
 
+const port = process.env.PORT ?? "4337";
+
 if (mode === "demo") {
   run("npx", ["tsx", "src/agent/run-attacks.ts"], "services");
   stop(0);
+} else if (mode === "prod") {
+  start("services", "npx", ["tsx", "src/server.ts"], "services");
+  await waitFor(`http://127.0.0.1:${port}/api/health`);
+  console.log(`\n  Serving dashboard and API on port ${port}\n`);
 } else {
   start("services", "npx", ["tsx", "src/server.ts"], "services");
-  await waitFor("http://127.0.0.1:4337/api/health");
+  await waitFor(`http://127.0.0.1:${port}/api/health`);
   start("dashboard", "npx", ["vite", "--host", "127.0.0.1", "--port", "5173", "--strictPort"], "dashboard");
   await waitFor("http://127.0.0.1:5173");
   console.log("\n  Dashboard: http://127.0.0.1:5173   (Ctrl+C stops everything)\n");

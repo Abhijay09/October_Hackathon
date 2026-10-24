@@ -13,6 +13,8 @@
     "test": "npm run test:contracts && npm run test:services",
     "test:contracts": "npm --workspace contracts test",
     "test:services": "npm --workspace services test",
-    "typecheck": "npm --workspace services run typecheck && npx --workspace dashboard tsc --noEmit -p ."
+    "typecheck": "npm --workspace services run typecheck && npx --workspace dashboard tsc --noEmit -p .",
+    "build": "npm --workspace contracts run build && npm --workspace dashboard run build",
+    "start": "node scripts/stack.mjs prod"
   }
 }
