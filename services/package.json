@@ -1,0 +1,23 @@
+{
+  "name": "@hypernexus/services",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "deploy": "tsx src/deploy.ts",
+    "start": "tsx src/server.ts",
+    "demo": "tsx src/demo.ts",
+    "attacks": "tsx src/agent/run-attacks.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  },
+  "dependencies": {
+    "@openzeppelin/merkle-tree": "^1.0.8",
+    "viem": "^2.57.11"
+  }
+}
