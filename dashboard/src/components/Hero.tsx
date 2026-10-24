@@ -3,6 +3,7 @@ import { useApp } from "../App";
 import { api } from "../lib/api";
 import { write } from "../lib/chain";
 import { formatINR, formatIST, short } from "../lib/format";
+import { YinYang } from "./YinYang";
 
 export function Hero() {
   const { cfg, state, run, busy, reloadConfig } = useApp();
@@ -46,7 +47,10 @@ export function Hero() {
       </div>
 
       <div className="hero-status">
-        <span className={`stamp stamp-${status.tone}`}>{status.label}</span>
+        <div className="status">
+          <YinYang still={state.frozen || status.tone !== "ok"} />
+          <span className={`status-label status-${status.tone}`}>{status.label}</span>
+        </div>
         {freezeWhy && <p className="small">{freezeWhy}</p>}
         {state.fraudReportedAt > 0 && (
           <p className="small">

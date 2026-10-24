@@ -41,12 +41,12 @@ export function AttackLab() {
     });
 
   return (
-    <section className="lab" aria-labelledby="lab-title">
+    <section id="lab" className="lab" aria-labelledby="lab-title">
       <div className="lab-head">
         <div>
           <h2 id="lab-title">Attack lab</h2>
           <p className="muted">
-            Ten hijack attacks plus ten honest errands, each on a fresh copy of this wallet with the same limits.
+            Ten hijack attacks and ten honest errands, each on a fresh copy of this wallet with the same limits.
             Your real wallet isn't touched. Chain time moves forward a few hours while it runs.
           </p>
         </div>
