@@ -74,11 +74,16 @@ async function request<T>(method: "GET" | "POST", path: string, body?: unknown):
     body: body ? JSON.stringify(body) : undefined,
   });
   const json = await res.json().catch(() => ({}));
+  if (res.status === 401 && !path.startsWith("/api/auth/")) window.dispatchEvent(new Event("hn:signed-out"));
   if (!res.ok) throw new Error(json.error ?? `Request failed (${res.status})`);
   return json as T;
 }
 
 export const api = {
+  me: () => request<{ email: string }>("GET", "/api/auth/me"),
+  login: (email: string, password: string) => request<{ email: string }>("POST", "/api/auth/login", { email, password }),
+  register: (email: string, password: string) => request<{ email: string }>("POST", "/api/auth/register", { email, password }),
+  logout: () => request<{ ok: true }>("POST", "/api/auth/logout", {}),
   config: () => request<Config>("GET", "/api/config"),
   pay: (merchantId: string, rupees: number) => request<Outcome>("POST", "/api/agent/pay", { merchantId, rupees }),
   errands: () => request<{ results: Array<{ merchantName: string; rupees: number; outcome: Outcome }> }>("POST", "/api/agent/errands"),
