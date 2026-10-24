@@ -8,6 +8,7 @@ import { AgentClient } from "./agent/client.js";
 import { ATTACKS, runAttack } from "./agent/attacks.js";
 import { evaluate, REPORT_FILE } from "./agent/evaluate.js";
 import { ERRANDS, merchantAddress, runErrands } from "./agent/honest.js";
+import { Auth, AuthError, clearedCookie, sessionCookie } from "./lib/auth.js";
 import { BundlerError } from "./lib/bundler.js";
 import { abis, devKey, ROOT } from "./lib/chain.js";
 import { createContext } from "./lib/context.js";
@@ -49,6 +50,15 @@ function serveStatic(pathname: string, res: ServerResponse): boolean {
   return true;
 }
 const ctx = createContext();
+const auth = new Auth({
+  dbPath: resolve(ROOT, "services/data/users.sqlite"),
+  secret: process.env.JWT_SECRET,
+});
+
+/** Behind Render's proxy the real client IP and scheme arrive in forwarded headers. */
+const clientIp = (req: IncomingMessage) =>
+  String(req.headers["x-forwarded-for"] ?? req.socket.remoteAddress ?? "unknown").split(",")[0].trim();
+const isHttps = (req: IncomingMessage) => req.headers["x-forwarded-proto"] === "https";
 const { dep } = ctx;
 let agent = new AgentClient(ctx, dep.contracts.wallet, dep.devKeys.agent);
 let pendingRotation: Hex | null = null;
@@ -244,28 +254,53 @@ function readBody(req: IncomingMessage): Promise<any> {
   });
 }
 
-function send(res: ServerResponse, status: number, body: unknown) {
-  res.writeHead(status, {
-    "content-type": "application/json",
-    "access-control-allow-origin": "*",
-    "access-control-allow-headers": "content-type",
-  });
+function send(res: ServerResponse, status: number, body: unknown, extra: Record<string, string> = {}) {
+  res.writeHead(status, { "content-type": "application/json", ...extra });
   res.end(toJson(body));
+}
+
+async function authRoute(req: IncomingMessage, res: ServerResponse, pathname: string) {
+  const secure = isHttps(req);
+  if (pathname === "/api/auth/me" && req.method === "GET") {
+    const session = await auth.sessionFromCookieHeader(req.headers.cookie);
+    return session ? send(res, 200, { email: session.email }) : send(res, 401, { error: "Not signed in." });
+  }
+  if (pathname === "/api/auth/logout" && req.method === "POST") {
+    return send(res, 200, { ok: true }, { "set-cookie": clearedCookie(secure) });
+  }
+  if ((pathname === "/api/auth/login" || pathname === "/api/auth/register") && req.method === "POST") {
+    const { email, password } = await readBody(req);
+    const ip = clientIp(req);
+    const session =
+      pathname === "/api/auth/login" ? await auth.login(email, password, ip) : await auth.register(email, password, ip);
+    const token = await auth.issue(session);
+    return send(res, 200, { email: session.email }, { "set-cookie": sessionCookie(token, secure) });
+  }
+  return send(res, 404, { error: "not found" });
 }
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url ?? "/", "http://localhost");
-  if (req.method === "OPTIONS") return send(res, 204, null);
+  const cors = { "access-control-allow-origin": "*", "access-control-allow-headers": "content-type" };
+  if (req.method === "OPTIONS") return send(res, 204, null, url.pathname === "/rpc" ? cors : {});
   try {
     if (url.pathname === "/rpc" && req.method === "POST") {
       const { id, method, params = [] } = await readBody(req);
       try {
-        return send(res, 200, { jsonrpc: "2.0", id, result: await rpc(method, params) });
+        return send(res, 200, { jsonrpc: "2.0", id, result: await rpc(method, params) }, cors);
       } catch (err) {
         const code = err instanceof BundlerError ? err.code : err instanceof PaymasterRefusal ? -32501 : ((err as any).code ?? -32603);
-        return send(res, 200, { jsonrpc: "2.0", id, error: { code, message: (err as Error).message } });
+        return send(res, 200, { jsonrpc: "2.0", id, error: { code, message: (err as Error).message } }, cors);
       }
     }
+    if (url.pathname.startsWith("/api/auth/")) return await authRoute(req, res, url.pathname);
+
+    // Everything below needs a signed-in user, except the health check and the public static files.
+    const needsLogin = url.pathname === "/chain" || (url.pathname.startsWith("/api/") && url.pathname !== "/api/health");
+    if (needsLogin && !(await auth.sessionFromCookieHeader(req.headers.cookie))) {
+      return send(res, 401, { error: "Sign in to continue." });
+    }
+
     // The dashboard talks to the chain through this path (Vite does the same in development).
     if (url.pathname === "/chain" && req.method === "POST") {
       const upstream = await fetch(dep.rpcUrl, {
@@ -283,7 +318,7 @@ const server = createServer(async (req, res) => {
     }
     return send(res, 200, await handler(req.method === "POST" ? await readBody(req) : {}));
   } catch (err) {
-    const status = err instanceof HttpError ? err.status : 500;
+    const status = err instanceof HttpError || err instanceof AuthError ? err.status : 500;
     if (status === 500) console.error(err);
     return send(res, status, { error: (err as Error).message });
   }

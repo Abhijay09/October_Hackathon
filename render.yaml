@@ -11,3 +11,5 @@ services:
         value: 24
       - key: HOST
         value: 0.0.0.0
+      - key: JWT_SECRET
+        generateValue: true
